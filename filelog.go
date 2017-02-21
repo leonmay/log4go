@@ -134,6 +134,8 @@ func (w *FileLogWriter) intRotate() error {
 		w.file.Close()
 	}
 
+	now := time.Now()
+
 	// If we are keeping log files, move it to the next available number
 	if w.rotate {
 		_, err := os.Lstat(w.filename)
@@ -171,6 +173,15 @@ func (w *FileLogWriter) intRotate() error {
 				return fmt.Errorf("Rotate: %s\n", err)
 			}
 		}
+	} else if w.daily && now.Day() != w.daily_opendate {
+		// if rotate is false,  daily can affect on the log file
+		w.file.Close()
+		fname := w.filename + fmt.Sprintf(".%s", now.AddDate(0, 0, -1).Format("2006-01-02"))
+		// Rename the file to its newfound home
+		err := os.Rename(w.filename, fname)
+		if err != nil {
+			return fmt.Errorf("Rotate: %s\n", err)
+		}
 	}
 
 	// Open the log file
@@ -180,7 +191,6 @@ func (w *FileLogWriter) intRotate() error {
 	}
 	w.file = fd
 
-	now := time.Now()
 	fmt.Fprint(w.file, FormatLogRecord(w.header, &LogRecord{Created: now}))
 
 	// Set the daily open date to the current date
